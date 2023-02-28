@@ -49,7 +49,7 @@ class BotManager:
 
     async def handle_updates(self, updates: list[Update]):
         for i in self.storage.keys():
-            if time() - self.storage[i][0] > 30 and self.storage[i][1]:
+            if time() - self.storage[i][0] > 10 and self.storage[i][1]:
                 updates.append(
                     Update(
                         type="time_out",
@@ -120,18 +120,67 @@ class BotManager:
                             text="Данная команда недоступна во время игры!",
                         )
                     )
+            if update.object.body == "Моя статистика!":
+                if not this_chat.state_in_game:
+                    await self.app.database.connect()
+                    async with self.app.database.session.begin() as session:
+                        user_check_wins = select(
+                            ParticipantsModel.__table__.c.wins,
+                            ParticipantsModel.__table__.c.name
+                        ).where(
+                            ParticipantsModel.__table__.columns.chat_id
+                            == update.object.chat_id,
+                            ParticipantsModel.__table__.c.owner_id == update.object.id,
+                        )
+                        result = await session.execute(user_check_wins)
+                        result = result.fetchall()
+                        print(result)
+                        await self.app.store.vk_api.send_message(
+                            Message(
+                                chat_id=update.object.chat_id,
+                                text=f"Статистика игрока {result[-1][1]}:",
+                            )
+                        )
+                        await self.app.store.vk_api.send_message(
+                            Message(
+                                chat_id=update.object.chat_id,
+                                text=f"Кол-во побед: {result[-1][0]}",
+                            )
+                        )
+                else:
+                    await self.app.store.vk_api.send_message(
+                        Message(
+                            chat_id=update.object.chat_id,
+                            text=f"Данная команда недоступна во время игры!",
+                        )
+                    )
             if this_chat.state_send_photo:
                 await self.command_send_photo(update, this_chat)
             if this_chat.state_wait_votes:
                 await self.command_write_answers(update, this_chat)
             if this_chat.state_in_game and (
                 (not this_chat.state_wait_votes)
-                or time() - self.storage[update.object.chat_id][0] > 30
+                or time() - self.storage[update.object.chat_id][0] > 10
             ):
                 await self.command_send_preresult(update, this_chat)
                 if self.check_users(this_chat):
                     if len(this_chat.users) == 1:
                         this_chat.last_winner = this_chat.users[-1][0]
+                        await self.app.database.connect()
+                        async with self.app.database.session.begin() as session:
+                            user_new_win = (
+                                refresh(ParticipantsModel.__table__)
+                                .where(
+                                    ParticipantsModel.__table__.c.name
+                                    == this_chat.last_winner,
+                                    ParticipantsModel.__table__.c.chat_id == update.object.chat_id,
+                                )
+                                .values(
+                                    wins = ParticipantsModel.__table__.c.wins + 1,
+                                )
+                            )
+                        await session.execute(user_new_win)
+                        await session.commit()
                         await self.app.store.vk_api.send_message(
                             Message(
                                 chat_id=update.object.chat_id,
