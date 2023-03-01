@@ -37,3 +37,4 @@ SQLAlchemy==2.0.3
 typing_extensions==4.4.0
 webargs==5.5.3
 yarl==1.8.2
+docker-compose=1.29.2-1

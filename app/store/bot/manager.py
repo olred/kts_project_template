@@ -49,7 +49,7 @@ class BotManager:
 
     async def handle_updates(self, updates: list[Update]):
         for i in self.storage.keys():
-            if time() - self.storage[i][0] > 10 and self.storage[i][1]:
+            if time() - self.storage[i][0] > 5 and self.storage[i][1]:
                 updates.append(
                     Update(
                         type="time_out",
@@ -70,16 +70,24 @@ class BotManager:
             if update.object.body == "Регистрация!":
                 await self.command_registery(update)
             if update.object.body == "Загрузить фотографии!" or this_chat.state_photo:
-                if not this_chat.state_in_game:
-                    this_chat.state_photo = True
-                    await self.command_download_photo(update, this_chat)
-                else:
+                this_chat.users = await app.store.vk_api.proccess_start_game(
+                    update.object.chat_id
+                )
+                if len(this_chat.users) == 0:
                     await self.app.store.vk_api.send_message(
-                        Message(
-                            chat_id=update.object.chat_id,
-                            text=f"Нельзя загружать фотографии во время игры!",
-                        )
+                        Message(chat_id=update.object.chat_id, text="Вы не прошли регистрацию!")
                     )
+                else:
+                    if not this_chat.state_in_game:
+                        this_chat.state_photo = True
+                        await self.command_download_photo(update, this_chat)
+                    else:
+                        await self.app.store.vk_api.send_message(
+                            Message(
+                                chat_id=update.object.chat_id,
+                                text=f"Нельзя загружать фотографии во время игры!",
+                            )
+                        )
             if update.object.body == "Начать игру!":
                 if not this_chat.state_in_game:
                     this_chat.reset_values()
@@ -160,7 +168,7 @@ class BotManager:
                 await self.command_write_answers(update, this_chat)
             if this_chat.state_in_game and (
                 (not this_chat.state_wait_votes)
-                or time() - self.storage[update.object.chat_id][0] > 10
+                or time() - self.storage[update.object.chat_id][0] > 5
             ):
                 await self.command_send_preresult(update, this_chat)
                 if self.check_users(this_chat):
@@ -261,6 +269,7 @@ class BotManager:
                         text="Фотографии успешно загружены!",
                     )
                 )
+
 
     async def command_start_game(self, update, this_chat):
         this_chat.users = await app.store.vk_api.proccess_start_game(
