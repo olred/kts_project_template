@@ -112,16 +112,30 @@ class VkApiAccessor(BaseAccessor):
                                 )
                             )
                 else:
-                    updates.append(
-                        Update(
-                            type=update["type"],
-                            object=UpdateObject(
-                                chat_id=update["object"]["message"]["peer_id"],
-                                id=update["object"]["message"]["from_id"],
-                                body=update["object"]["message"]["text"],
-                            ),
+                    try:
+                        updates.append(
+                            Update(
+                                type=update["type"],
+                                object=UpdateObject(
+                                    chat_id=update["object"]["message"]["peer_id"],
+                                    id=update["object"]["message"]["from_id"],
+                                    body=update["object"]["message"]["text"],
+                                    type=update["object"]["message"]["action"]["type"]
+                                ),
+                            )
                         )
-                    )
+                    except KeyError:
+                        updates.append(
+                            Update(
+                                type=update["type"],
+                                object=UpdateObject(
+                                    chat_id=update["object"]["message"]["peer_id"],
+                                    id=update["object"]["message"]["from_id"],
+                                    body=update["object"]["message"]["text"],
+                                    type="other_type"
+                                ),
+                            )
+                        )
 
             await self.app.store.bots_manager.handle_updates(updates)
 

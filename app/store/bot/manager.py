@@ -2,8 +2,8 @@ import typing
 from logging import getLogger
 from time import sleep, time
 from random import choice
-from sqlalchemy.sql import select, update as refresh
-
+from sqlalchemy.sql import select, update as refresh, delete
+from app.store.bot.lexicon import commands_for_users, commands_for_admins
 from app.store.bot.services import make_grid, check_winner
 from app.store.vk_api.dataclasses import Message, Update, Attachment, UpdateObject
 from app.web.app import app
@@ -49,7 +49,7 @@ class BotManager:
 
     async def handle_updates(self, updates: list[Update]):
         for i in self.storage.keys():
-            if time() - self.storage[i][0] > 5 and self.storage[i][1]:
+            if time() - self.storage[i][0] > 15 and self.storage[i][1]:
                 updates.append(
                     Update(
                         type="time_out",
@@ -57,6 +57,7 @@ class BotManager:
                             chat_id=i,
                             id=-1,
                             body="time_out",
+                            type="time_out"
                         ),
                     )
                 )
@@ -146,13 +147,7 @@ class BotManager:
                         await self.app.store.vk_api.send_message(
                             Message(
                                 chat_id=update.object.chat_id,
-                                text=f"Статистика игрока {result[-1][1]}:",
-                            )
-                        )
-                        await self.app.store.vk_api.send_message(
-                            Message(
-                                chat_id=update.object.chat_id,
-                                text=f"Кол-во побед: {result[-1][0]}",
+                                text=f"Статистика игрока {result[-1][1]}:%0AКол-во побед: {result[-1][0]}",
                             )
                         )
                 else:
@@ -162,13 +157,51 @@ class BotManager:
                             text=f"Данная команда недоступна во время игры!",
                         )
                     )
+            if update.object.body == "Команды!":
+                if not this_chat.state_in_game:
+                    with open("app/store/bot/admins_id.txt", "r", encoding="utf-8") as file:
+                        reader = list(map(int, file.readlines()))
+                        if update.object.id in reader:
+                            result = ""
+                            for i in commands_for_users.items():
+                                result += f"{i[0]}: {i[1]}%0A"
+                            for i in commands_for_admins.items():
+                                result += f"{i[0]}: {i[1]}%0A"
+                            await self.app.store.vk_api.send_message(
+                                Message(
+                                    chat_id=update.object.chat_id,
+                                    text=result[:-3],
+                                )
+                            )
+                        else:
+                            result = ""
+                            for i in commands_for_users.items():
+                                result += f"{i[0]}: {i[1]}%0A"
+                            await self.app.store.vk_api.send_message(
+                                Message(
+                                    chat_id=update.object.chat_id,
+                                    text=result[:-3],
+                                )
+                            )
+            if update.object.type == "chat_kick_user":
+                await self.app.database.connect()
+                async with self.app.database.session.begin() as session:
+                    user_check_wins = delete(
+                        ParticipantsModel.__table__
+                    ).where(
+                        ParticipantsModel.__table__.columns.chat_id
+                        == update.object.chat_id,
+                        ParticipantsModel.__table__.c.owner_id == update.object.id,
+                    )
+                    await session.execute(user_check_wins)
+                await session.commit()
             if this_chat.state_send_photo:
                 await self.command_send_photo(update, this_chat)
             if this_chat.state_wait_votes:
                 await self.command_write_answers(update, this_chat)
             if this_chat.state_in_game and (
                 (not this_chat.state_wait_votes)
-                or time() - self.storage[update.object.chat_id][0] > 5
+                or time() - self.storage[update.object.chat_id][0] > 15
             ):
                 await self.command_send_preresult(update, this_chat)
                 if self.check_users(this_chat):
@@ -275,24 +308,33 @@ class BotManager:
         this_chat.users = await app.store.vk_api.proccess_start_game(
             update.object.chat_id
         )
-        this_chat.amount_users = len(this_chat.users)
-        if len(this_chat.users) == 0:
-            await self.app.store.vk_api.send_message(
-                Message(chat_id=update.object.chat_id, text="Вы не прошли регистрацию!")
-            )
-        else:
-            for i in range(3, 0, -1):
+        if len(list(filter(lambda x: not x[2] is None, this_chat.users))) == len(this_chat.users):
+            this_chat.amount_users = len(this_chat.users)
+            if len(this_chat.users) == 0:
                 await self.app.store.vk_api.send_message(
-                    Message(
-                        chat_id=update.object.chat_id,
-                        text=f"Игра начинается через {i}.",
-                    )
+                    Message(chat_id=update.object.chat_id, text="Вы не прошли регистрацию!")
                 )
-                sleep(1)
+            elif len(this_chat.users) == 1:
+                await self.app.store.vk_api.send_message(
+                    Message(chat_id=update.object.chat_id, text="Необходимо минимум два человека!")
+                )
+            else:
+                for i in range(3, 0, -1):
+                    await self.app.store.vk_api.send_message(
+                        Message(
+                            chat_id=update.object.chat_id,
+                            text=f"Игра начинается через {i}.",
+                        )
+                    )
+                    sleep(1)
+                await self.app.store.vk_api.send_message(
+                    Message(chat_id=update.object.chat_id, text=f"Поехали!")
+                )
+                this_chat.state_send_photo = True
+        else:
             await self.app.store.vk_api.send_message(
-                Message(chat_id=update.object.chat_id, text=f"Поехали!")
+                Message(chat_id=update.object.chat_id, text="Не все пользователи загрузили фотографии!")
             )
-            this_chat.state_send_photo = True
 
     async def command_send_photo(self, update, this_chat):
         this_chat.new_pair = make_grid(this_chat.users)

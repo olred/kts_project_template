@@ -6,11 +6,11 @@ class UpdateObject:
     chat_id: int
     id: int
     body: str
+    type: str
 
 
 @dataclass
 class UpdatePhoto(UpdateObject):
-    type: str
     owner_id: int
     photo_id: int
     access_key: str
