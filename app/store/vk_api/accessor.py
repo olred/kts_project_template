@@ -2,9 +2,7 @@ import random
 import typing
 from typing import Optional
 from aiohttp import TCPConnector
-from sqlalchemy import select
 from aiohttp.client import ClientSession
-from app.store.models.model import ParticipantsModel
 from app.base.base_accessor import BaseAccessor
 from app.store.vk_api.dataclasses import (
     Message,
@@ -12,6 +10,7 @@ from app.store.vk_api.dataclasses import (
     UpdateObject,
     UpdatePhoto,
     Attachment,
+    UpdateAction,
 )
 from app.store.vk_api.poller import Poller
 
@@ -36,9 +35,7 @@ class VkApiAccessor(BaseAccessor):
             await self._get_long_poll_service()
         except Exception as e:
             self.logger.error("Exception", exc_info=e)
-        self.poller = Poller(app.store)
         self.logger.info("start polling")
-        await self.poller.start()
 
     async def disconnect(self, app: "Application"):
         if self.session:
@@ -74,7 +71,8 @@ class VkApiAccessor(BaseAccessor):
             self.ts = data["ts"]
             self.logger.info(self.server)
 
-    async def poll(self):
+    async def poll(self, app):
+        await self.connect(app)
         async with self.session.get(
             self._build_query(
                 host=self.server,
@@ -83,7 +81,7 @@ class VkApiAccessor(BaseAccessor):
                     "act": "a_check",
                     "key": self.key,
                     "ts": self.ts,
-                    "wait": 1,
+                    "wait": 10,
                 },
             )
         ) as resp:
@@ -101,9 +99,13 @@ class VkApiAccessor(BaseAccessor):
                                 Update(
                                     type=update["type"],
                                     object=UpdatePhoto(
-                                        chat_id=update["object"]["message"]["peer_id"],
+                                        chat_id=update["object"]["message"][
+                                            "peer_id"
+                                        ],
                                         id=update["object"]["message"]["id"],
-                                        body=update["object"]["message"]["text"],
+                                        body=update["object"]["message"][
+                                            "text"
+                                        ],
                                         type=i["type"],
                                         owner_id=i["photo"]["owner_id"],
                                         photo_id=i["photo"]["id"],
@@ -116,11 +118,18 @@ class VkApiAccessor(BaseAccessor):
                         updates.append(
                             Update(
                                 type=update["type"],
-                                object=UpdateObject(
-                                    chat_id=update["object"]["message"]["peer_id"],
+                                object=UpdateAction(
+                                    chat_id=update["object"]["message"][
+                                        "peer_id"
+                                    ],
                                     id=update["object"]["message"]["from_id"],
                                     body=update["object"]["message"]["text"],
-                                    type=update["object"]["message"]["action"]["type"]
+                                    type=update["object"]["message"]["action"][
+                                        "type"
+                                    ],
+                                    member_id=update["object"]["message"][
+                                        "action"
+                                    ]["member_id"],
                                 ),
                             )
                         )
@@ -129,17 +138,20 @@ class VkApiAccessor(BaseAccessor):
                             Update(
                                 type=update["type"],
                                 object=UpdateObject(
-                                    chat_id=update["object"]["message"]["peer_id"],
+                                    chat_id=update["object"]["message"][
+                                        "peer_id"
+                                    ],
                                     id=update["object"]["message"]["from_id"],
                                     body=update["object"]["message"]["text"],
-                                    type="other_type"
+                                    type="other_type",
                                 ),
                             )
                         )
+        await self.disconnect(app)
+        return updates
 
-            await self.app.store.bots_manager.handle_updates(updates)
-
-    async def send_message(self, message: Message) -> None:
+    async def send_message(self, message: Message, app) -> None:
+        await self.connect(app)
         async with self.session.get(
             self._build_query(
                 API_PATH,
@@ -154,6 +166,7 @@ class VkApiAccessor(BaseAccessor):
         ) as resp:
             data = await resp.json()
             self.logger.info(data)
+        await self.disconnect(app)
 
     @staticmethod
     def _build_attachment(attach_mass: list[str]):
@@ -163,7 +176,8 @@ class VkApiAccessor(BaseAccessor):
             spisok.append(stroka)
         return ",".join(spisok)
 
-    async def send_photo(self, attachment: Attachment) -> None:
+    async def send_photo(self, attachment: Attachment, app) -> None:
+        await self.connect(app)
         attachments = self._build_attachment(attachment.attachment)
         print(attachments)
         async with self.session.get(
@@ -181,8 +195,10 @@ class VkApiAccessor(BaseAccessor):
         ) as resp:
             data = await resp.json()
             self.logger.info(data)
+        await self.disconnect(app)
 
-    async def make_userlist(self, chat_id):
+    async def make_userlist(self, chat_id, app):
+        await self.connect(app)
         async with self.session.get(
             self._build_query(
                 API_PATH,
@@ -199,16 +215,5 @@ class VkApiAccessor(BaseAccessor):
                 full_name = f'@{data["response"]["profiles"][i]["screen_name"]}'
                 id_profile = data["response"]["profiles"][i]["id"]
                 participants.append((full_name, id_profile))
+                await self.disconnect(app)
             return participants
-
-    async def proccess_start_game(self, chat_id):
-        await self.app.database.connect()
-        async with self.app.database.session.begin() as session:
-            users_exists_select = select(
-                ParticipantsModel.__table__.c.name,
-                ParticipantsModel.__table__.c.owner_id,
-                ParticipantsModel.__table__.c.photo_id,
-                ParticipantsModel.__table__.c.access_key,
-            ).where(ParticipantsModel.__table__.c.chat_id == chat_id)
-            result = await session.execute(users_exists_select)
-            return result.fetchall()

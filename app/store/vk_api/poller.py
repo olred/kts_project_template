@@ -5,22 +5,22 @@ from app.store import Store
 
 
 class Poller:
-    def __init__(self, store: Store):
+    def __init__(self, in_queue, store: Store):
         self.store = store
         self.is_running = False
         self.poll_task: Optional[Task] = None
+        self.in_queue = in_queue
 
-    async def start(self):
+    async def start(self, app):
         self.is_running = True
-        self.poll_task = asyncio.create_task(self.poll())
-        await asyncio.gather(self.poll_task)
+        self.poll_task = asyncio.create_task(self.poll(app))
 
     async def stop(self):
         self.is_running = False
-        await self.poll_task
+        self.poll_task.cancel()
 
-    async def poll(self):
+    async def poll(self, app):
         while self.is_running:
-            updates = await self.store.vk_api.poll()
-            if not (updates is None):
-                await self.store.bots_manager.handle_updates(updates)
+            updates = await self.store.vk_api.poll(app)
+            for u in updates:
+                self.in_queue.put_nowait(u)

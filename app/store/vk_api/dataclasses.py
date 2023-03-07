@@ -17,9 +17,14 @@ class UpdatePhoto(UpdateObject):
 
 
 @dataclass
+class UpdateAction(UpdateObject):
+    member_id: int
+
+
+@dataclass
 class Update:
     type: str
-    object: UpdateObject | UpdatePhoto
+    object: UpdateObject | UpdatePhoto | UpdateAction
 
 
 @dataclass

@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import AsyncEngine
-from app.store.models.model import ParticipantsModel
+from app.store.models.model import ParticipantsModel, GameModel
 
 from alembic import context
 
