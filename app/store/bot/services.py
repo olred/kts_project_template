@@ -10,9 +10,22 @@ def make_grid(data_users: list):
     return [participant_1, participant_2]
 
 
-def check_winner(game: dict, pair: list):
-    if game[pair[0]] > game[pair[1]]:
+def check_winner(game):
+    if game["first_votes"] > game["second_votes"]:
         return 1
-    if game[pair[0]] < game[pair[1]]:
+    if game["first_votes"] < game["second_votes"]:
         return 2
     return 0
+
+
+def check_kicked(kicked_users: list, active_users: dict):
+    i = 0
+    while i != len(active_users["participants"]):
+        if list(active_users["participants"][i].keys())[-1] in kicked_users:
+            active_users["participants"] = (
+                active_users["participants"][:i]
+                + active_users["participants"][i + 1 :]
+            )
+        else:
+            i += 1
+    return active_users

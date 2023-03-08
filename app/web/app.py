@@ -2,8 +2,6 @@ from typing import Optional
 
 from aiohttp.web import (
     Application as AiohttpApplication,
-    Request as AiohttpRequest,
-    View as AiohttpView,
 )
 
 from app.store import Store, setup_store

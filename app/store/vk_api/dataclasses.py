@@ -6,20 +6,25 @@ class UpdateObject:
     chat_id: int
     id: int
     body: str
+    type: str
 
 
 @dataclass
 class UpdatePhoto(UpdateObject):
-    type: str
     owner_id: int
     photo_id: int
     access_key: str
 
 
 @dataclass
+class UpdateAction(UpdateObject):
+    member_id: int
+
+
+@dataclass
 class Update:
     type: str
-    object: UpdateObject | UpdatePhoto
+    object: UpdateObject | UpdatePhoto | UpdateAction
 
 
 @dataclass
