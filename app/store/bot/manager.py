@@ -6,7 +6,7 @@ from random import choice
 from sqlalchemy import insert
 from sqlalchemy.sql import select, update as refresh, delete
 
-from app.store.bot.keyboards import keyboard_admin
+from app.store.bot.keyboards import keyboard
 from app.store.bot.lexicon import (
     commands_for_users,
     commands_for_admins,
@@ -35,7 +35,7 @@ class BotManager:
         self.time_end = {}
         self.storage = {}
         self.reader = open(
-            "/home/olred/PycharmProjects/kts_project_template/app/store/bot/admins_id.txt",
+            "admins_id.txt",
             "r",
             encoding="utf-8",
         )
@@ -223,7 +223,7 @@ class BotManager:
                         "keyboard",
                         update.object.chat_id,
                         lexicon_for_messages["COMMANDS"],
-                        keyboard_admin,
+                        keyboard,
                     )
                 )
             else:
@@ -235,7 +235,7 @@ class BotManager:
                         "keyboard",
                         update.object.chat_id,
                         lexicon_for_messages["COMMANDS"],
-                        keyboard_user,
+                        keyboard,
                     )
                 )
         else:
