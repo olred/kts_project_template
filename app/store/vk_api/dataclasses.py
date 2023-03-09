@@ -34,6 +34,11 @@ class Message:
 
 
 @dataclass
+class MessageKeyboard(Message):
+    keyboard: str
+
+
+@dataclass
 class Attachment(Message):
     attachment: list[str]
 

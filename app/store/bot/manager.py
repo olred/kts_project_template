@@ -1,11 +1,12 @@
 import asyncio
 import typing
 from logging import getLogger
-from time import sleep
 from random import choice
 
 from sqlalchemy import insert
 from sqlalchemy.sql import select, update as refresh, delete
+
+from app.store.bot.keyboards import keyboard_admin
 from app.store.bot.lexicon import (
     commands_for_users,
     commands_for_admins,
@@ -43,14 +44,14 @@ class BotManager:
             "chat_invite_user": self.command_invite,
         }
         self.commands = {
-            "Регистрация!": self.command_registery,
-            "Начать игру!": self.command_start_game,
-            "Остановить игру!": self.command_stop_game,
-            "Последняя игра!": self.command_last_game,
-            "Моя статистика!": self.command_my_statistic,
-            "Команды!": self.command_list_of_commands,
-            "Следующий раунд!": self.command_next_round,
-            "Статистика!": self.command_general_statistic,
+            f"{lexicon_for_messages['ID_GROUP']} Регистрация!": self.command_registery,
+            f"{lexicon_for_messages['ID_GROUP']} Начать игру!": self.command_start_game,
+            f"{lexicon_for_messages['ID_GROUP']} Остановить игру!": self.command_stop_game,
+            f"{lexicon_for_messages['ID_GROUP']} Последняя игра!": self.command_last_game,
+            f"{lexicon_for_messages['ID_GROUP']} Моя статистика!": self.command_my_statistic,
+            f"Команды!": self.command_list_of_commands,
+            f"{lexicon_for_messages['ID_GROUP']} Следующий раунд!": self.command_next_round,
+            f"{lexicon_for_messages['ID_GROUP']} Статистика!": self.command_general_statistic,
         }
 
     async def handle_updates(self, update):
@@ -70,7 +71,11 @@ class BotManager:
         self.reader = list(map(int, self.reader))
         if update.object.body in self.commands:
             await self.commands[update.object.body](update, game)
-        if update.object.body == "Загрузить фотографии!" or game["state_photo"]:
+        if (
+            update.object.body
+            == f"{lexicon_for_messages['ID_GROUP']} Загрузить фотографии!"
+            or game["state_photo"]
+        ):
             if len(users) == 0:
                 self.out_queue.put_nowait(
                     (
@@ -95,7 +100,8 @@ class BotManager:
                     )
         if (
             len(update.object.body.split()) == 2
-            and "Исключить" in update.object.body.split()
+            and f"{lexicon_for_messages['ID_GROUP']} Исключить"
+            in update.object.body.split()
         ):
             await self.command_kick_from_game(
                 update.object.body.split()[1], update, game
@@ -213,14 +219,24 @@ class BotManager:
                 for i in commands_for_admins.items():
                     result += f"{i[0]}: {i[1]}%0A"
                 self.out_queue.put_nowait(
-                    ("message", update.object.chat_id, result[:-3])
+                    (
+                        "keyboard",
+                        update.object.chat_id,
+                        lexicon_for_messages["COMMANDS"],
+                        keyboard_admin,
+                    )
                 )
             else:
                 result = ""
                 for i in commands_for_users.items():
                     result += f"{i[0]}: {i[1]}%0A"
                 self.out_queue.put_nowait(
-                    ("message", update.object.chat_id, result[:-3])
+                    (
+                        "keyboard",
+                        update.object.chat_id,
+                        lexicon_for_messages["COMMANDS"],
+                        keyboard_user,
+                    )
                 )
         else:
             self.out_queue.put_nowait(

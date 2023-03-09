@@ -43,4 +43,6 @@ lexicon_for_messages = {
     "GAME_NO_EXIST": "Игровая сессия не запущена!",
     "ADMIN_COMMAND": "Данная команда вам недоступна!",
     "USER_KICKED": "Пользователь исключен!",
+    "COMMANDS": "Список команд",
+    "ID_GROUP": "[club207946988|@kusokusa]",
 }
