@@ -1,7 +1,7 @@
 import asyncio
 import typing
 
-from app.store.vk_api.dataclasses import Message, Attachment
+from app.store.vk_api.dataclasses import Message, Attachment, MessageKeyboard
 
 if typing.TYPE_CHECKING:
     from app.web.app import Application
@@ -25,6 +25,11 @@ class VKSender:
                     attachment=upd[3],
                     text=upd[2],
                 ),
+                self.app,
+            )
+        if upd[0] == "keyboard":
+            await self.app.store.vk_api.send_message(
+                MessageKeyboard(chat_id=upd[1], text=upd[2], keyboard=upd[3]),
                 self.app,
             )
 

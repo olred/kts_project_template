@@ -11,6 +11,7 @@ from app.store.vk_api.dataclasses import (
     UpdatePhoto,
     Attachment,
     UpdateAction,
+    MessageKeyboard,
 )
 from app.store.vk_api.poller import Poller
 
@@ -150,19 +151,28 @@ class VkApiAccessor(BaseAccessor):
         await self.disconnect(app)
         return updates
 
-    async def send_message(self, message: Message, app) -> None:
+    async def send_message(
+        self, message: Message | MessageKeyboard, app
+    ) -> None:
         await self.connect(app)
+        if type(message) is Message:
+            parametrs = {
+                "random_id": random.randint(1, 2**32),
+                "peer_id": message.chat_id,
+                "message": message.text,
+                "access_token": self.app.config.bot.token,
+            }
+        else:
+            print(1)
+            parametrs = {
+                "random_id": random.randint(1, 2**32),
+                "peer_id": message.chat_id,
+                "message": message.text,
+                "keyboard": message.keyboard,
+                "access_token": self.app.config.bot.token,
+            }
         async with self.session.get(
-            self._build_query(
-                API_PATH,
-                "messages.send",
-                params={
-                    "random_id": random.randint(1, 2**32),
-                    "peer_id": message.chat_id,
-                    "message": message.text,
-                    "access_token": self.app.config.bot.token,
-                },
-            )
+            self._build_query(API_PATH, "messages.send", params=parametrs)
         ) as resp:
             data = await resp.json()
             self.logger.info(data)
@@ -179,7 +189,6 @@ class VkApiAccessor(BaseAccessor):
     async def send_photo(self, attachment: Attachment, app) -> None:
         await self.connect(app)
         attachments = self._build_attachment(attachment.attachment)
-        print(attachments)
         async with self.session.get(
             self._build_query(
                 API_PATH,
