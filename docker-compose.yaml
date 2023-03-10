@@ -14,7 +14,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
   bot:
-    build: .
+    image: olred/vk_bot_project:my-image
     command: sh -c "make migrate && python run_bot.py"
     restart: always
     depends_on:

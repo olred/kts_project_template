@@ -100,8 +100,7 @@ class BotManager:
                     )
         if (
             len(update.object.body.split()) == 2
-            and f"{lexicon_for_messages['ID_GROUP']} Исключить"
-            in update.object.body.split()
+            and "Исключить" in update.object.body.split()
         ):
             await self.command_kick_from_game(
                 update.object.body.split()[1], update, game
@@ -734,6 +733,8 @@ class BotManager:
                         )
                     )
                 elif len(game["users"]["participants"]) == 1:
+                    game["kicked_users"]["kicked"] = []
+                    await self.set_kicked(update, game["kicked_users"], game)
                     self.out_queue.put_nowait(
                         (
                             "message",
@@ -741,6 +742,8 @@ class BotManager:
                             lexicon_for_messages["LITTLE_PEOPLE"],
                         )
                     )
+                    game["kicked_users"]["kicked"] = []
+                    await self.set_kicked(update, game["kicked_users"], game)
                 else:
                     for i in range(3, 0, -1):
                         self.out_queue.put_nowait(
