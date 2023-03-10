@@ -1,0 +1,26 @@
+version: '3.5'
+
+services:
+  db:
+    container_name: db
+    restart: on-failure
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_PASSWORD=kts_pass
+      - POSTGRES_USER=kts_user
+      - POSTGRES_DB=kts
+    image: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  bot:
+    image: olred/vk_bot_project:my-image
+    command: sh -c "make migrate && python run_bot.py"
+    restart: always
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
+
+

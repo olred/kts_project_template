@@ -6,7 +6,7 @@ from random import choice
 from sqlalchemy import insert
 from sqlalchemy.sql import select, update as refresh, delete
 
-from app.store.bot.keyboards import keyboard_admin
+from app.store.bot.keyboards import keyboard
 from app.store.bot.lexicon import (
     commands_for_users,
     commands_for_admins,
@@ -35,7 +35,7 @@ class BotManager:
         self.time_end = {}
         self.storage = {}
         self.reader = open(
-            "/home/olred/PycharmProjects/kts_project_template/app/store/bot/admins_id.txt",
+            "admins_id.txt",
             "r",
             encoding="utf-8",
         )
@@ -100,8 +100,7 @@ class BotManager:
                     )
         if (
             len(update.object.body.split()) == 2
-            and f"{lexicon_for_messages['ID_GROUP']} Исключить"
-            in update.object.body.split()
+            and "Исключить" in update.object.body.split()
         ):
             await self.command_kick_from_game(
                 update.object.body.split()[1], update, game
@@ -223,7 +222,7 @@ class BotManager:
                         "keyboard",
                         update.object.chat_id,
                         lexicon_for_messages["COMMANDS"],
-                        keyboard_admin,
+                        keyboard,
                     )
                 )
             else:
@@ -235,7 +234,7 @@ class BotManager:
                         "keyboard",
                         update.object.chat_id,
                         lexicon_for_messages["COMMANDS"],
-                        keyboard_user,
+                        keyboard,
                     )
                 )
         else:
@@ -734,6 +733,8 @@ class BotManager:
                         )
                     )
                 elif len(game["users"]["participants"]) == 1:
+                    game["kicked_users"]["kicked"] = []
+                    await self.set_kicked(update, game["kicked_users"], game)
                     self.out_queue.put_nowait(
                         (
                             "message",
@@ -741,6 +742,8 @@ class BotManager:
                             lexicon_for_messages["LITTLE_PEOPLE"],
                         )
                     )
+                    game["kicked_users"]["kicked"] = []
+                    await self.set_kicked(update, game["kicked_users"], game)
                 else:
                     for i in range(3, 0, -1):
                         self.out_queue.put_nowait(

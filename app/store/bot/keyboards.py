@@ -12,8 +12,8 @@ def get_but(text, color):
     }
 
 
-keyboard_admin = {
-    "one_time": True,
+keyboard = {
+    "one_time": False,
     "buttons": [
         [
             get_but("Регистрация!", "primary"),
@@ -34,5 +34,5 @@ keyboard_admin = {
     ],
 }
 
-keyboard_admin = json.dumps(keyboard_admin, ensure_ascii=False).encode("utf-8")
-keyboard_admin = str(keyboard_admin.decode("utf-8"))
+keyboard = json.dumps(keyboard, ensure_ascii=False).encode("utf-8")
+keyboard = str(keyboard.decode("utf-8"))

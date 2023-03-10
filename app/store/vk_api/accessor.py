@@ -50,7 +50,6 @@ class VkApiAccessor(BaseAccessor):
         if "v" not in params:
             params["v"] = "5.132"
         url += "&".join([f"{k}={v}" for k, v in params.items()])
-        print(url)
         return url
 
     async def _get_long_poll_service(self):
@@ -163,7 +162,6 @@ class VkApiAccessor(BaseAccessor):
                 "access_token": self.app.config.bot.token,
             }
         else:
-            print(1)
             parametrs = {
                 "random_id": random.randint(1, 2**32),
                 "peer_id": message.chat_id,
