@@ -512,7 +512,7 @@ class BotManager:
                 .values(
                     wins=ParticipantsModel.__table__.c.wins + 1,
                 )
-            )
+            ) # New win
             await session.execute(user_new_win)
         await session.commit()
 
