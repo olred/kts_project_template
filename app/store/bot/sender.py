@@ -42,7 +42,7 @@ class VKSender:
                 self.out_queue.task_done()
 
     async def start(self):
-        asyncio.create_task(self._worker())
+        self._tasks.append(asyncio.create_task(self._worker()))
 
     async def stop(self):
         await self.out_queue.join()

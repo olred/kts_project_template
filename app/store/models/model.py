@@ -2,7 +2,7 @@ from sqlalchemy.orm import relationship
 
 from app.store.database.sqlalchemy_base import db
 
-from sqlalchemy import Column, Text, BigInteger, ForeignKey, Boolean
+from sqlalchemy import Column, Text, BigInteger, ForeignKey, Boolean, Integer
 from sqlalchemy.dialects.postgresql import JSONB
 
 
@@ -13,11 +13,10 @@ class GameModel(db):
         BigInteger, ForeignKey("game_session.chat_id", ondelete="CASCADE")
     )
     users = Column(JSONB)
-    state_photo = Column(Boolean)
     state_in_game = Column(Boolean)
     state_wait_votes = Column(Boolean)
     new_pair = Column(JSONB)
-    first_votes = Column(BigInteger, default=0)
+    first_votes = Column(Integer, default=0)
     second_votes = Column(BigInteger, default=0)
     state_send_photo = Column(Boolean)
     voters = Column(JSONB)
@@ -36,6 +35,7 @@ class ParticipantsModel(db):
     __tablename__ = "participants"
     id = Column(BigInteger, primary_key=True)
     name = Column(Text, nullable=False)
+    user_id = Column(BigInteger)
     wins = Column(BigInteger)
     chat_id = Column(
         BigInteger, ForeignKey("game_session.chat_id", ondelete="CASCADE")

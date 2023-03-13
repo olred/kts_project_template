@@ -1,5 +1,9 @@
+import asyncio
 import random
 import typing
+from io import BytesIO
+
+import requests
 from typing import Optional
 from aiohttp import TCPConnector
 from aiohttp.client import ClientSession
@@ -21,6 +25,51 @@ if typing.TYPE_CHECKING:
 API_PATH = "https://api.vk.com/method/"
 
 
+class FilesOpener(object):
+    def __init__(self, paths, key_format='file{}'):
+        if not isinstance(paths, list):
+            paths = [paths]
+
+        self.paths = paths
+        self.key_format = key_format
+        self.opened_files = []
+
+    def __enter__(self):
+        return self.open_files()
+
+    def __exit__(self, type, value, traceback):
+        self.close_files()
+
+    def open_files(self):
+        self.close_files()
+
+        files = []
+
+        for x, file in enumerate(self.paths):
+            if hasattr(file, 'read'):
+                f = file
+
+                if hasattr(file, 'name'):
+                    filename = file.name
+                else:
+                    filename = '.jpg'
+            else:
+                filename = file
+                f = open(filename, 'rb')
+                self.opened_files.append(f)
+
+            ext = filename.split('.')[-1]
+            files.append(
+                (self.key_format.format(x), ('file{}.{}'.format(x, ext), f))
+            )
+
+        return files
+
+    def close_files(self):
+        for f in self.opened_files:
+            f.close()
+
+        self.opened_files = []
 class VkApiAccessor(BaseAccessor):
     def __init__(self, app: "Application", *args, **kwargs):
         super().__init__(app, *args, **kwargs)
@@ -52,6 +101,7 @@ class VkApiAccessor(BaseAccessor):
         url += "&".join([f"{k}={v}" for k, v in params.items()])
         return url
 
+
     async def _get_long_poll_service(self):
         async with self.session.get(
             self._build_query(
@@ -63,6 +113,7 @@ class VkApiAccessor(BaseAccessor):
                 },
             )
         ) as resp:
+            a = await resp.json()
             data = (await resp.json())["response"]
 
             self.logger.info(data)
@@ -81,7 +132,7 @@ class VkApiAccessor(BaseAccessor):
                     "act": "a_check",
                     "key": self.key,
                     "ts": self.ts,
-                    "wait": 10,
+                    "wait": 30,
                 },
             )
         ) as resp:
@@ -150,6 +201,83 @@ class VkApiAccessor(BaseAccessor):
         await self.disconnect(app)
         return updates
 
+
+    async def get_messages_server(self, app, chat_id):
+        async with self.session.get(
+            self._build_query(
+                API_PATH,
+                "photos.getMessagesUploadServer",
+                params={
+                    "peer_id": chat_id,
+                    "fields": "photo_400_orig",
+                    "access_token": self.app.config.bot.token,
+                },
+            )
+                ) as resp:
+            data = (await resp.json())["response"]
+            return data["upload_url"]
+
+
+    async def get_photo(self, app, user_ids, chat_id):
+        user_ids = ",".join(user_ids)
+        async with self.session.get(
+            self._build_query(
+                API_PATH,
+                "users.get",
+                params={
+                    "user_ids": user_ids,
+                    "fields": "photo_400_orig",
+                    "access_token": self.app.config.bot.token,
+                },
+            )
+                ) as resp:
+            data = (await resp.json())["response"]
+            return [i["photo_400_orig"] for i in data]
+
+
+
+    async def save_photo(self, app, photo_links, chat_id):
+        url = await self.get_messages_server(app, chat_id)
+        massiv = []
+        tasks = []
+        for i in photo_links:
+            img = requests.get(i).content
+            f = BytesIO(img)
+            with FilesOpener(f) as photo_files:
+                response = requests.post(url, files=photo_files)
+                answer = response.json()
+                massiv.append(answer)
+        return massiv
+
+    async def process_of_get_fields(self, app, object, result):
+        async with self.session.get(
+                self._build_query(
+                    API_PATH,
+                    "photos.saveMessagesPhoto",
+                    params={
+                        "photo": object["photo"],
+                        "server": object["server"],
+                        "hash": object["hash"],
+                        "access_token": self.app.config.bot.token
+                    },
+                )
+        ) as resp:
+            photo_attr = (await resp.json())["response"][-1]
+            result.append((photo_attr["id"], photo_attr["access_key"], photo_attr["owner_id"]))
+
+    async def download_photo(self, app, user_ids, chat_id):
+        photo_links = await self.get_photo(app, user_ids, chat_id)
+        data = await self.save_photo(app, photo_links, chat_id)
+        result = []
+        tasks = []
+        for i in data:
+            tasks.append(asyncio.create_task(self.process_of_get_fields(app, i, result)))
+        await asyncio.gather(*tasks)
+        return result
+
+
+
+
     async def send_message(
         self, message: Message | MessageKeyboard, app
     ) -> None:
@@ -174,7 +302,7 @@ class VkApiAccessor(BaseAccessor):
         ) as resp:
             data = await resp.json()
             self.logger.info(data)
-        await self.disconnect(app)
+
 
     @staticmethod
     def _build_attachment(attach_mass: list[str]):
@@ -202,7 +330,7 @@ class VkApiAccessor(BaseAccessor):
         ) as resp:
             data = await resp.json()
             self.logger.info(data)
-        await self.disconnect(app)
+
 
     async def make_userlist(self, chat_id, app):
         await self.connect(app)
@@ -222,5 +350,6 @@ class VkApiAccessor(BaseAccessor):
                 full_name = f'@{data["response"]["profiles"][i]["screen_name"]}'
                 id_profile = data["response"]["profiles"][i]["id"]
                 participants.append((full_name, id_profile))
-                await self.disconnect(app)
+            photo_fields = await self.app.store.vk_api.download_photo(app, [str(i[1]) for i in participants], chat_id)
+            participants = list(zip(participants, photo_fields))
             return participants
