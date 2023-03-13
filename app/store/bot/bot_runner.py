@@ -7,7 +7,7 @@ from app.bot_vk import Bot
 
 def run():
     loop = asyncio.get_event_loop()
-    bot = Bot(3)
+    bot = Bot(100)
     try:
         print("Bot has been started")
         loop.create_task(bot.start())

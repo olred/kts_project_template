@@ -1,8 +1,8 @@
-"""Add GameModel
+"""empty message
 
-Revision ID: e0fb8c912758
+Revision ID: 5f7064142136
 Revises: 
-Create Date: 2023-03-04 19:24:14.714777
+Create Date: 2023-03-13 15:54:44.890404
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = 'e0fb8c912758'
+revision = '5f7064142136'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -38,12 +38,14 @@ def upgrade() -> None:
     sa.Column('voters', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     sa.Column('amount_users', sa.BigInteger(), nullable=True),
     sa.Column('last_winner', sa.Text(), nullable=True),
+    sa.Column('kicked_users', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     sa.ForeignKeyConstraint(['chat_id'], ['game_session.chat_id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('participants',
     sa.Column('id', sa.BigInteger(), nullable=False),
     sa.Column('name', sa.Text(), nullable=False),
+    sa.Column('user_id', sa.BigInteger(), nullable=True),
     sa.Column('wins', sa.BigInteger(), nullable=True),
     sa.Column('chat_id', sa.BigInteger(), nullable=True),
     sa.Column('owner_id', sa.BigInteger(), nullable=True),

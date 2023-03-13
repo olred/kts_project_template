@@ -22,7 +22,7 @@ class Database:
     async def connect(self, *_: list, **__: dict) -> None:
         self._db = db
         self._engine = create_async_engine(
-            "postgresql+asyncpg://kts_user:kts_pass@db:5432/kts",
+            "postgresql+asyncpg://kts_user:kts_pass@db:5432/kts", #db
             echo=True,
         )
         self.session = sessionmaker(

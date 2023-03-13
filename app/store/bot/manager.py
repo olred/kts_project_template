@@ -72,33 +72,6 @@ class BotManager:
         if update.object.body in self.commands:
             await self.commands[update.object.body](update, game)
         if (
-            update.object.body
-            == f"{lexicon_for_messages['ID_GROUP']} Загрузить фотографии!"
-            or game["state_photo"]
-        ):
-            if len(users) == 0:
-                self.out_queue.put_nowait(
-                    (
-                        "message",
-                        update.object.chat_id,
-                        lexicon_for_messages["NO_REG"],
-                    )
-                )
-            else:
-                if not game["state_in_game"]:
-                    if not game["state_photo"]:
-                        await self.set_state_photo(update, True)
-                    else:
-                        await self.command_download_photo(update)
-                else:
-                    self.out_queue.put_nowait(
-                        (
-                            "message",
-                            update.object.chat_id,
-                            lexicon_for_messages["DUR_GAME"],
-                        )
-                    )
-        if (
             len(update.object.body.split()) == 2
             and "Исключить" in update.object.body.split()
         ):
@@ -157,24 +130,25 @@ class BotManager:
                 result = await app.store.vk_api.make_userlist(
                     update.object.chat_id, self.app
                 )
-                for k, v in result:
-                    users_exists_select = select(
-                        ParticipantsModel.__table__.c.chat_id,
-                        ParticipantsModel.__table__.c.name,
-                    ).where(
-                        ParticipantsModel.__table__.columns.chat_id
-                        == update.object.chat_id,
-                        ParticipantsModel.__table__.c.name == k,
-                    )
-                    result = await session.execute(users_exists_select)
-                    if not ((update.object.chat_id, k) in result.fetchall()):
+                users_exists_select = select(
+                    ParticipantsModel.__table__.c.chat_id,
+                    ParticipantsModel.__table__.c.name,
+                ).where(
+                    ParticipantsModel.__table__.columns.chat_id
+                    == update.object.chat_id,
+                )
+                response_db = await session.execute(users_exists_select)
+                response_db = response_db.fetchall()
+                for i in result:
+                    if not ((update.object.chat_id, i[0][0]) in response_db):
                         new_user = ParticipantsModel(
-                            name=k,
+                            name=i[0][0],
                             wins=0,
+                            user_id=i[0][1],
                             chat_id=update.object.chat_id,
-                            owner_id=v,
-                            photo_id=None,
-                            access_key=None,
+                            owner_id=i[1][2],
+                            photo_id=i[1][0],
+                            access_key=i[1][1],
                         )
                         session.add(new_user)
                 await session.commit()
@@ -197,6 +171,8 @@ class BotManager:
     async def command_next_round(self, update, game):
         if game["state_in_game"]:
             game["state_wait_votes"] = False
+            if game["voters"] is None:
+                game["voters"] = {}
             game["voters"]["already_voted"] = []
             await self.set_state_wait_votes(update, game["state_wait_votes"])
             await self.set_voters(update, [], game)
@@ -562,7 +538,7 @@ class BotManager:
             ).where(
                 ParticipantsModel.__table__.columns.chat_id
                 == update.object.chat_id,
-                ParticipantsModel.__table__.c.owner_id == update.object.id,
+                ParticipantsModel.__table__.c.user_id == update.object.id,
             )
             result = await session.execute(user_check_wins)
         return result.fetchall()
@@ -586,7 +562,7 @@ class BotManager:
             user_check_wins = delete(ParticipantsModel.__table__).where(
                 ParticipantsModel.__table__.columns.chat_id
                 == update.object.chat_id,
-                ParticipantsModel.__table__.c.owner_id == update.object.id,
+                ParticipantsModel.__table__.c.user_id == update.object.id,
             )
             await session.execute(user_check_wins)
         await session.commit()
@@ -616,34 +592,6 @@ class BotManager:
             return 1
         return 0
 
-    async def command_download_photo(self, update):
-        if hasattr(update.object, "type") and update.object.type == "photo":
-            await self.app.database.connect()
-            async with self.app.database.session.begin() as session:
-                users_add_photos = (
-                    refresh(ParticipantsModel.__table__)
-                    .where(
-                        ParticipantsModel.__table__.c.owner_id
-                        == update.object.owner_id,
-                        ParticipantsModel.__table__.c.chat_id
-                        == update.object.chat_id,
-                    )
-                    .values(
-                        photo_id=update.object.photo_id,
-                        access_key=update.object.access_key,
-                    )
-                )
-                await self.set_state_photo(update, False)
-                await session.execute(users_add_photos)
-                await session.commit()
-
-                self.out_queue.put_nowait(
-                    (
-                        "message",
-                        update.object.chat_id,
-                        lexicon_for_messages["SUCC_PHOTO"],
-                    )
-                )
 
     async def proccess_start_game(self, chat_id):
         await self.app.database.connect()

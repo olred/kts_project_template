@@ -17,7 +17,6 @@ keyboard = {
     "buttons": [
         [
             get_but("Регистрация!", "primary"),
-            get_but("Загрузить фотографии!", "primary"),
         ],
         [
             get_but("Начать игру!", "primary"),

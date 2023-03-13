@@ -36,6 +36,7 @@ class ParticipantsModel(db):
     __tablename__ = "participants"
     id = Column(BigInteger, primary_key=True)
     name = Column(Text, nullable=False)
+    user_id = Column(BigInteger)
     wins = Column(BigInteger)
     chat_id = Column(
         BigInteger, ForeignKey("game_session.chat_id", ondelete="CASCADE")
