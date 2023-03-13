@@ -1,7 +1,7 @@
 version: '3.5'
 
 services:
-  db:
+  postgr:
     container_name: db
     restart: on-failure
     ports:
@@ -14,12 +14,11 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
   bot:
-    build: .
-#    image: olred/vk_bot_project:my-image
+    image: olred/vk_bot_project:latest
     command: sh -c "make migrate && python run_bot.py"
     restart: always
     depends_on:
-      - db
+      - postgr
 
 volumes:
   pgdata:

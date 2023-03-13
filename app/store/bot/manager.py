@@ -308,17 +308,16 @@ class BotManager:
         result = {
             "chat_id": temp[0][1],
             "users": temp[0][2],
-            "state_photo": temp[0][3],
-            "state_in_game": temp[0][4],
-            "state_wait_votes": temp[0][5],
-            "new_pair": temp[0][6],
-            "first_votes": temp[0][7],
-            "second_votes": temp[0][8],
-            "state_send_photo": temp[0][9],
-            "voters": temp[0][10],
-            "amount_users": temp[0][11],
-            "last_winner": temp[0][12],
-            "kicked_users": temp[0][13],
+            "state_in_game": temp[0][3],
+            "state_wait_votes": temp[0][4],
+            "new_pair": temp[0][5],
+            "first_votes": temp[0][6],
+            "second_votes": temp[0][7],
+            "state_send_photo": temp[0][8],
+            "voters": temp[0][9],
+            "amount_users": temp[0][10],
+            "last_winner": temp[0][11],
+            "kicked_users": temp[0][12],
         }
         return result
 
@@ -344,18 +343,6 @@ class BotManager:
             await session.execute(query_state_photo)
         await session.commit()
 
-    async def set_state_photo(self, update, value):
-        await self.app.database.connect()
-        async with self.app.database.session.begin() as session:
-            query_state_photo = (
-                refresh(GameModel.__table__)
-                .where(
-                    GameModel.__table__.c.chat_id == update.object.chat_id,
-                )
-                .values(state_photo=value)
-            )
-            await session.execute(query_state_photo)
-        await session.commit()
 
     async def set_state_send_photo(self, update, value):
         await self.app.database.connect()

@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 5f7064142136
+Revision ID: 02d03f3e7912
 Revises: 
-Create Date: 2023-03-13 15:54:44.890404
+Create Date: 2023-03-13 18:46:54.457627
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '5f7064142136'
+revision = '02d03f3e7912'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -25,7 +25,7 @@ def upgrade() -> None:
     sa.UniqueConstraint('chat_id')
     )
     op.create_table('game',
-    sa.Column('id', sa.BigInteger(), nullable=False),
+    sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('chat_id', sa.BigInteger(), nullable=True),
     sa.Column('users', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     sa.Column('state_photo', sa.Boolean(), nullable=True),
